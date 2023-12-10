@@ -1,0 +1,363 @@
+---
+title: "Petru_Glavan"
+author: "Oleg Arnaut"
+date: "2023-12-08"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, error = FALSE, message = TRUE)
+
+knitr::opts_chunk$set(dpi=300) 
+knitr::opts_chunk$set(fig.width=7, fig.height=5) 
+
+library(tidyverse)
+library(forcats)
+library(readxl)
+library(openxlsx)
+library(flextable)
+library(dplyr)
+library(gtsummary)
+library(smd)
+
+
+library(ggstatsplot)
+
+#install.packages('janitor')
+library(janitor)
+
+library(hms)
+
+library(lubridate)
+
+# Define a function for grouped boxplots with nonparametric statistics
+create_grouped_boxplot <- function(data, x_var, y_var, x_name, y_name) {
+  # Create grouped boxplot using ggbetweenstats
+  plt <- ggbetweenstats(
+    data = data,
+    x = {{ x_var }},
+    y = {{ y_var }},
+    type = "nonparametric"
+  )
+
+  # Customize labels and themes
+  plt <- plt + 
+    labs(
+      x = x_name,
+      y = y_name,
+      #title = paste("Distribution of", quo_name(y_var), "by", quo_name(x_var))
+    ) + 
+    theme(
+      text = element_text(family = "sans", size = 8, color = "black"),
+      plot.title = element_text(
+        family = "sans", 
+        size = 12,
+        face = "bold",
+        color = "#2a475e"
+      ),
+      plot.subtitle = element_text(
+        family = "sans", 
+        size = 12, 
+        face = "bold",
+        color = "#1b2838"
+      ),
+      plot.title.position = "plot",
+      axis.text = element_text(size = 10, color = "black"),
+      axis.title = element_text(size = 12)
+    )
+  
+  # Further customize themes
+  plt <- plt  +
+    # Uncomment and adjust if you want specific y-axis limits
+    # ylim(0, max(data$y_var) + 5)+
+    theme(
+      axis.ticks = element_blank(),
+      axis.line = element_line(colour = "grey50"),
+      panel.grid = element_line(color = "#b4aea9"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.grid.major.y = element_line(linetype = "dashed"),
+      panel.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4"),
+      plot.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4")
+    )
+  
+  # Return the created plot
+  return(plt)
+}
+
+
+
+```
+
+
+
+# Dataset formation
+
+```{r}
+
+#?read_excel
+
+# open excel skipping the first row
+df <- read_excel("Baza de date.xlsx", skip = 1)
+
+
+
+# all characters in factors
+df <- df%>%mutate_if(is.character, as.factor)
+
+# convert data in data format and generate a variable the difference between them in days
+df$`Data examinării` <-as.Date(df$`Data examinării`, format = "%Y-%m-%d")
+df$`Data agresării`  <-as.Date(df$`Data agresării`, format = "%Y-%m-%d")
+df$Postagresiune     <-as.numeric(difftime(df$`Data examinării`, df$`Data agresării`, units = "days"))
+
+# convert only in time
+df$`Ora agresării` <-  as_hms(df$`Ora agresării`)
+
+df$`Ora agresării` <- hour(df$`Ora agresării`)
+
+# remove duplicates and days
+df %>% select(!c("Chestionar", "Nr. raportului", `Data agresării`, `Data examinării`)) %>% remove_constant(na.rm = FALSE, quiet = TRUE) -> df 
+
+
+#df$Severitatea <- factor(df$Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-mediu"))
+
+
+
+#levels(df$Severitatea)
+
+
+#df$Postagresiune
+
+```
+
+# Characteristica generala
+
+```{r}
+
+#names(df)
+
+df %>% tbl_summary(
+              statistic = list(all_categorical() ~ "{n} ({p}%)",
+                               all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "),
+              digits = list(all_categorical() ~ c(0, 1),
+                            all_continuous()  ~ c(1, 1))) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels()  %>% add_ci()
+
+
+
+```
+
+# Evaluarea comparativa pentru loturile dupa severitatea leziunilor
+
+```{r}
+
+
+df %>%
+  #select("Mediul de reședință", "Severitatea")%>%
+  mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Severitatea",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>% 
+  add_q(method = "hochberg") %>%
+  bold_p()
+
+
+
+
+```
+
+#  Visualizarea evaluarea comparativa (variabilie continui)
+
+```{r}
+
+library(rlang)
+library(purrr)
+
+df %>%
+  #select("Mediul de reședință", "Severitatea")%>%
+  mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) -> df
+
+# variables <- c("talia_cm", "talia_percentile", "talia_DS", "greutate_kg", "greutate_percentile", "greutate_DS", "surplus", "IMC", "IMC_percentile", "IMC_Zscore")
+# names <- c("Talia, cm", "Talia, percentile", "Talia, DS", "Greutate, kg", "Greutate, percentile", "Greutate, DS", "surplus", "IMC", "IMC, percentile", "IMC, Zscore")
+
+
+
+numerical_data <- names(df %>% select_if(is.numeric))
+
+for (i in seq_along(numerical_data)) {
+  element1 <- numerical_data[[i]]
+  element2 <- numerical_data[[i]]
+  
+  plot <- create_grouped_boxplot(df, "Severitatea", !!ensym(element1), "Severitatea", element2)
+  print(plot)
+}
+
+#df$Severitatea
+
+```
+
+#  Visualizarea evaluarea comparativa (variabilie categoriale)
+
+
+```{r}
+
+# factor_variables <- names(df)[sapply(df, is.factor)]
+# 
+# library(vcd)
+# 
+# for (i in factor_variables) {
+#   if (i != "Severitatea") {
+#     # Perform chi-squared test with simulation-based p-value
+#     chi_result <- chisq.test(table(df$Severitatea, df[[i]]))
+#     
+#     # Calculate V Cramer's statistic
+#     assoc_stats <- assocstats(table(df$Severitatea, df[[i]]))
+#     v_cramer <- assoc_stats$cramer
+#     
+#     # Print the chi-squared test results and V Cramer's statistic
+#     print(paste("Chi-Squared Test for", i))
+#     print(chi_result)
+#     print(paste("V Cramer's statistic:", v_cramer))
+#     
+#     # Create a bar plot using ggplot2
+#     p <- ggplot(df, aes(x = Severitatea, fill = .data[[i]])) +
+#       geom_bar(position = "fill") +
+#       labs(title = paste("Bar Plot for", i),
+#            subtitle = paste("Chi-Squared Test:", 
+#                              "=", round(chi_result$statistic, 2),
+#                              "\np-value =", format(chi_result$p.value, digits = 4),
+#                              "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+#            x = "Gradul de gravitate",
+#            y = "Proportion") +
+#       theme_minimal()
+#     
+#     # Print the plot
+#     print(p)
+#   }
+# }
+
+
+# factor_variables <- names(df)[sapply(df, is.factor)]
+# 
+# library(vcd)
+# library(ggplot2)
+# 
+# for (i in factor_variables) {
+#   if (i != "Severitatea") {
+#     # Perform Fisher's exact test
+#     fisher_result <- fisher.test(table(df$Severitatea, df[[i]]))
+#     
+#     # Calculate V Cramer's statistic
+#     assoc_stats <- assocstats(table(df$Severitatea, df[[i]]))
+#     v_cramer <- assoc_stats$cramer
+#     
+#     # Print the Fisher's exact test results and V Cramer's statistic
+#     cat("Fisher's Exact Test for", i, "\n")
+#     print(fisher_result)
+#     cat("V Cramer's statistic:", v_cramer, "\n")
+#     
+#     # Create a bar plot using ggplot2
+#     p <- ggplot(df, aes(x = Severitatea, fill = .data[[i]])) +
+#       geom_bar(position = "fill", color = "black") +
+#       labs(title = paste("Bar Plot for", i),
+#            subtitle = paste("Fisher's Exact Test:", 
+#                              "p-value =", format(fisher_result$p.value, digits = 4),
+#                              "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+#            x = "Gradul de gravitate",
+#            y = "Proportion") +
+#       theme_minimal()
+#     
+#     # Print the plot
+#     print(p)
+#   }
+# }
+# 
+# ?fisher.test
+
+
+# factor_variables <- names(df)[sapply(df, is.factor)]
+# 
+# library(vcd)
+# library(ggplot2)
+# 
+# for (i in factor_variables) {
+#   if (i != "Severitatea") {
+#     # Perform Fisher's exact test
+#     fisher_result <- fisher.test(table(df$Severitatea, df[[i]]))
+#     
+#     # Calculate V Cramer's statistic
+#     assoc_stats <- assocstats(table(df$Severitatea, df[[i]]))
+#     v_cramer <- assoc_stats$cramer
+#     
+#     # Create a bar plot using ggplot2
+#     p <- ggplot(df, aes(x = Severitatea, fill = .data[[i]])) +
+#       geom_bar(position = "fill", color = "black") +
+#       labs(title = paste("Bar Plot for", i),
+#            subtitle = paste("Fisher's Exact Test: OR =", format(fisher_result$estimate, digits = 4),
+#                              "\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
+#                              "-", format(fisher_result$conf.int[2], digits = 4),
+#                              "\np-value =", format(fisher_result$p.value, digits = 4),
+#                              "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+#            x = "Gradul de gravitate",
+#            y = "Proportion") +
+#       theme_minimal()
+#     
+#     # Print the plot
+#     print(p)
+#   }
+# }
+
+factor_variables <- names(df)[sapply(df, is.factor)]
+
+library(vcd)
+library(ggplot2)
+
+for (i in factor_variables) {
+  if (i != "Severitatea") {
+    # Perform Fisher's exact test with simulated p-value
+    fisher_result <- fisher.test(table(df$Severitatea, df[[i]]), simulate.p.value = TRUE)
+    
+    # Calculate V Cramer's statistic
+    assoc_stats <- assocstats(table(df$Severitatea, df[[i]]))
+    v_cramer <- assoc_stats$cramer
+    
+    # Create a bar plot using ggplot2
+    p <- ggplot(df, aes(x = Severitatea, fill = .data[[i]])) +
+      geom_bar(position = "fill", color = "black") +
+      labs(title = paste("Bar Plot for", i),
+           subtitle = paste("Fisher's Exact Test (Simulated P-value): OR =", format(fisher_result$estimate, digits = 4),
+                             #"\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
+                             #"-", format(fisher_result$conf.int[2], digits = 4),
+                             "\nSimulated p-value =", format(fisher_result$p.value, digits = 4),
+                             "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+           x = "Gradul de gravitate",
+           y = "Proportion") +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+
+
+```
+
