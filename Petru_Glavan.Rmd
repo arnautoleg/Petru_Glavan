@@ -343,7 +343,7 @@ for (i in factor_variables) {
     p <- ggplot(df, aes(x = Severitatea, fill = .data[[i]])) +
       geom_bar(position = "fill", color = "black") +
       labs(title = paste("Bar Plot for", i),
-           subtitle = paste("Fisher's Exact Test (Simulated P-value): OR =", format(fisher_result$estimate, digits = 4),
+           subtitle = paste("Fisher's Exact Test cu simulare: ",
                              #"\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
                              #"-", format(fisher_result$conf.int[2], digits = 4),
                              "\nSimulated p-value =", format(fisher_result$p.value, digits = 4),
@@ -360,4 +360,613 @@ for (i in factor_variables) {
 
 
 ```
+
+
+# 9.	În care parte a zilei victimele sunt predispuse agresiunii (zi/noapte (Ora agresării))?
+
+```{r}
+
+#names(df)
+
+
+hist(df$"Ora agresării", col = "blue", xlab = 'Histograma pentru ora agresarii', xlim=c(0, 23))
+
+#?hist()
+
+```
+
+# 1.	Care este structura după tipul rapoartelor (Tipul raportului) și corelația lor cu vechimea diferită leziuni (Vechimea diferită leziuni)?
+
+
+```{r}
+
+df %>%
+  select("Tipul raportului", "Vechimea diferită leziuni")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Tipul raportului",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>%
+  bold_p()
+
+
+#names(df)
+
+
+```
+
+
+```{r}
+
+library(vcd)
+library(ggplot2)
+
+for (i in c("Tipul raportului", "Vechimea diferită leziuni")) {
+  if (i != "Tipul raportului") {
+    # Perform Fisher's exact test with simulated p-value
+    fisher_result <- fisher.test(table(df$"Tipul raportului", df[[i]]), simulate.p.value = TRUE)
+    
+    # Calculate V Cramer's statistic
+    assoc_stats <- assocstats(table(df$"Tipul raportului", df[[i]]))
+    v_cramer <- assoc_stats$cramer
+    
+    # Create a bar plot using ggplot2
+    p <- ggplot(df, aes(x = `Tipul raportului`, fill = .data[[i]])) +
+      geom_bar(position = "fill", color = "black") +
+      labs(title = paste("Bar Plot for", i),
+           subtitle = paste("Fisher's Exact Test cu simulare: ",
+                             #"\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
+                             #"-", format(fisher_result$conf.int[2], digits = 4),
+                             "\nSimulated p-value =", format(fisher_result$p.value, digits = 4),
+                             "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+           x = "Tipul raportului",
+           y = "Proportion") +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+
+
+```
+
+# 2.	Care este vârsta medie a victimelor (Vârsta) și corelația ei cu sexul (Sexul persoanei) și mediul de reședință (Mediul de reședință)?
+
+```{r}
+
+df %>%
+  select("Vârsta", "Sexul persoanei")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Sexul persoanei",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>%
+  bold_p()
+
+```
+
+
+```{r}
+
+library(rlang)
+library(purrr)
+
+#df %>%
+  #select("Mediul de reședință", "Severitatea")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) -> df
+
+# variables <- c("talia_cm", "talia_percentile", "talia_DS", "greutate_kg", "greutate_percentile", "greutate_DS", "surplus", "IMC", "IMC_percentile", "IMC_Zscore")
+# names <- c("Talia, cm", "Talia, percentile", "Talia, DS", "Greutate, kg", "Greutate, percentile", "Greutate, DS", "surplus", "IMC", "IMC, percentile", "IMC, Zscore")
+
+
+
+
+for (i in seq_along(c("Vârsta"))) {
+  element1 <- numerical_data[[i]]
+  element2 <- numerical_data[[i]]
+  
+  plot <- create_grouped_boxplot(df, "Sexul persoanei", !!ensym(element1), "Sexul persoanei", element2)
+  print(plot)
+}
+
+
+```
+
+
+
+```{r}
+
+df %>%
+  select("Vârsta", "Mediul de reședință")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Mediul de reședință",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>%
+  bold_p()
+
+```
+
+
+```{r}
+
+for (i in seq_along("Vârsta")) {
+  element1 <- numerical_data[[i]]
+  element2 <- numerical_data[[i]]
+  
+  plot <- create_grouped_boxplot(df, "Mediul de reședință", !!ensym(element1), "Mediul de reședință", element2)
+  print(plot)
+}
+
+
+```
+
+
+# 3.	Care este structura victimelor după sex (Sexul persoanei) și corelația ei cu locul agresării (Locul agresării/Alt loc agresare) și mediul de reședință (Mediul de reședință)?
+
+
+
+```{r}
+
+df %>%
+  select("Sexul persoanei", "Locul agresării", "Mediul de reședință")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Sexul persoanei",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>%
+  add_q(method = "hochberg") %>%
+  bold_p()
+
+
+#names(df)
+
+
+```
+
+
+
+```{r}
+
+library(vcd)
+library(ggplot2)
+
+for (i in c("Sexul persoanei", "Locul agresării", "Mediul de reședință")) {
+  if (i != "Sexul persoanei") {
+    # Perform Fisher's exact test with simulated p-value
+    fisher_result <- fisher.test(table(df$"Sexul persoanei", df[[i]]), simulate.p.value = TRUE)
+    
+    # Calculate V Cramer's statistic
+    assoc_stats <- assocstats(table(df$"Sexul persoanei", df[[i]]))
+    v_cramer <- assoc_stats$cramer
+    
+    # Create a bar plot using ggplot2
+    p <- ggplot(df, aes(x = `Sexul persoanei`, fill = .data[[i]])) +
+      geom_bar(position = "fill", color = "black") +
+      labs(title = paste("Bar Plot for", i),
+           subtitle = paste("Fisher's Exact Test cu simulare: ",
+                             #"\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
+                             #"-", format(fisher_result$conf.int[2], digits = 4),
+                             "\nSimulated p-value =", format(fisher_result$p.value, digits = 4),
+                             "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+           x = "Sexul persoanei",
+           y = "Proportion") +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+
+```
+
+# 5.	Care este structura după mediul de reședință (Mediul de reședință) și corelația ei cu:
+•	adresare asistență medicală (Adresare asistență medicală) și spitalizare (Spitalizare)
+•	perioada postagresiune (Data examinării – Data agresării)
+•	violența cronică (Violență cronică) / vechimea diferită a leziunilor (Vechimea diferită leziuni)
+•	tipul agresiunii (Tipul agresiunii) / factorul traumatic (Factor traumatic)
+
+
+```{r}
+
+df %>%
+  select("Mediul de reședință", "Adresare asistență medicală", "Spitalizare", "Postagresiune", "Vechimea diferită leziuni", "Violență cronică",
+         "Lovire", "Împingere", "Tragere de păr", "Sugrumare", "Strangulare", "Sufocare", "Tăiere/înțepare", "Acțiune agent termic", "Alt tip",
+         "Corp contondent","Obiect ascuțit", "Factor fizic", "Corpul contondent", "Obiectul ascuțit", "Factorul fizic")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Mediul de reședință",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>%
+  add_q(method = "hochberg") %>%
+  bold_p()
+
+
+#names(df)
+
+```
+
+
+```{r}
+
+for (i in seq_along(numerical_data)) {
+  element1 <- numerical_data[[i]]
+  element2 <- numerical_data[[i]]
+  
+  plot <- create_grouped_boxplot(df, "Mediul de reședință", !!ensym(element1), "Mediul de reședință", element2)
+  print(plot)
+}
+
+
+
+```
+
+
+```{r}
+
+library(vcd)
+library(ggplot2)
+
+for (i in c("Mediul de reședință", "Adresare asistență medicală", "Spitalizare", "Vechimea diferită leziuni", "Violență cronică",
+            "Lovire", "Împingere", "Tragere de păr", "Sugrumare", "Strangulare", "Sufocare", "Tăiere/înțepare", "Acțiune agent termic", "Alt tip",
+           "Corp contondent","Obiect ascuțit", "Factor fizic", "Corpul contondent", "Obiectul ascuțit", "Factorul fizic")) {
+  if (i != "Mediul de reședință") {
+    # Perform Fisher's exact test with simulated p-value
+    fisher_result <- fisher.test(table(df$"Mediul de reședință", df[[i]]), simulate.p.value = TRUE)
+    
+    # Calculate V Cramer's statistic
+    assoc_stats <- assocstats(table(df$"Mediul de reședință", df[[i]]))
+    v_cramer <- assoc_stats$cramer
+    
+    # Create a bar plot using ggplot2
+    p <- ggplot(df, aes(x = `Mediul de reședință`, fill = .data[[i]])) +
+      geom_bar(position = "fill", color = "black") +
+      labs(title = paste("Bar Plot for", i),
+           subtitle = paste("Fisher's Exact Test cu simulare: ",
+                             #"\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
+                             #"-", format(fisher_result$conf.int[2], digits = 4),
+                             "\nSimulated p-value =", format(fisher_result$p.value, digits = 4),
+                             "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+           x = "Mediul de reședință",
+           y = "Proportion") +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+```
+
+# 6.	Care este structura statutului social (Statut social) și corelația cu:
+•	violența cronică (Violență cronică)
+•	adresare asistență medicală (Adresare asistență medicală)
+
+
+
+```{r}
+
+df %>%
+  select("Statut social", "Violență cronică", "Adresare asistență medicală")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Statut social",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>%
+  add_q(method = "hochberg") %>%
+  bold_p()
+
+
+
+```
+
+
+```{r}
+
+
+library(vcd)
+library(ggplot2)
+
+for (i in c("Statut social", "Violență cronică", "Adresare asistență medicală")) {
+  if (i != "Statut social") {
+    # Perform Fisher's exact test with simulated p-value
+    fisher_result <- fisher.test(table(df$"Statut social", df[[i]]), simulate.p.value = TRUE)
+    
+    # Calculate V Cramer's statistic
+    assoc_stats <- assocstats(table(df$"Statut social", df[[i]]))
+    v_cramer <- assoc_stats$cramer
+    
+    # Create a bar plot using ggplot2
+    p <- ggplot(df, aes(x = `Statut social`, fill = .data[[i]])) +
+      geom_bar(position = "fill", color = "black") +
+      labs(title = paste("Bar Plot for", i),
+           subtitle = paste("Fisher's Exact Test cu simulare: ",
+                             #"\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
+                             #"-", format(fisher_result$conf.int[2], digits = 4),
+                             "\nSimulated p-value =", format(fisher_result$p.value, digits = 4),
+                             "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+           x = "Statut social",
+           y = "Proportion") +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+
+
+```
+
+# 8.	Care este structura după agresor (Agresorul) și relația acestuia cu victima?
+•	corelația dintre agresor (Agresorul) și tipul agresiunii (Tipul agresiunii)
+•	corelația dintre agresor (Agresorul) și gradul de gravitate al leziunilor (Gradul de gravitate)
+•	corelația dintre agresor (Agresorul) și violența cronică (Violență cronică) / vechimea diferită a leziunilor (Vechimea diferită leziuni)
+
+
+```{r}
+
+df %>%
+  select("Soț/Soție", "Concubin(ă)", "Frate/Soră", "Tată", "Mamă",                       
+         "Bunic(ă)", "Fiu/Fiică", "Altă rudă", "Foști soți/concubini", "Violență cronică")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Violență cronică",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>%
+  add_q(method = "hochberg") %>%
+  bold_p()
+
+
+
+#names(df)
+
+```
+
+
+
+```{r}
+
+library(vcd)
+library(ggplot2)
+
+for (i in c("Soț/Soție", "Concubin(ă)", "Frate/Soră", "Tată", "Mamă",                       
+         "Bunic(ă)", "Fiu/Fiică", "Altă rudă", "Foști soți/concubini", "Violență cronică")) {
+  if (i != "Violență cronică") {
+    # Perform Fisher's exact test with simulated p-value
+    fisher_result <- fisher.test(table(df$"Violență cronică", df[[i]]), simulate.p.value = TRUE)
+    
+    # Calculate V Cramer's statistic
+    assoc_stats <- assocstats(table(df$"Violență cronică", df[[i]]))
+    v_cramer <- assoc_stats$cramer
+    
+    # Create a bar plot using ggplot2
+    p <- ggplot(df, aes(x = `Violență cronică`, fill = .data[[i]])) +
+      geom_bar(position = "fill", color = "black") +
+      labs(title = paste("Bar Plot for", i),
+           subtitle = paste("Fisher's Exact Test cu simulare: ",
+                             #"\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
+                             #"-", format(fisher_result$conf.int[2], digits = 4),
+                             "\nSimulated p-value =", format(fisher_result$p.value, digits = 4),
+                             "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+           x = "Violență cronică",
+           y = "Proportion") +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+
+```
+
+
+
+```{r}
+
+df %>%
+  select("Soț/Soție", "Concubin(ă)", "Frate/Soră", "Tată", "Mamă",                       
+         "Bunic(ă)", "Fiu/Fiică", "Altă rudă", "Foști soți/concubini", "Vechimea diferită leziuni")%>%
+  #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+  tbl_summary(
+    by = "Vechimea diferită leziuni",
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+    ),
+    digits = list(
+      all_categorical() ~ c(0, 1),
+      all_continuous() ~ c(1, 1)
+    )
+  ) %>%
+  modify_header(label = "**Variable**") %>%
+  modify_caption("Participant characteristics") %>%
+  bold_labels() %>%
+  add_ci() %>% 
+  add_p() %>%
+  add_q(method = "hochberg") %>%
+  bold_p()
+
+```
+
+
+
+```{r}
+
+library(vcd)
+library(ggplot2)
+
+for (i in c("Soț/Soție", "Concubin(ă)", "Frate/Soră", "Tată", "Mamă",                       
+         "Bunic(ă)", "Fiu/Fiică", "Altă rudă", "Foști soți/concubini", "Vechimea diferită leziuni")) {
+  if (i != "Vechimea diferită leziuni") {
+    # Perform Fisher's exact test with simulated p-value
+    fisher_result <- fisher.test(table(df$"Vechimea diferită leziuni", df[[i]]), simulate.p.value = TRUE)
+    
+    # Calculate V Cramer's statistic
+    assoc_stats <- assocstats(table(df$"Vechimea diferită leziuni", df[[i]]))
+    v_cramer <- assoc_stats$cramer
+    
+    # Create a bar plot using ggplot2
+    p <- ggplot(df, aes(x = `Vechimea diferită leziuni`, fill = .data[[i]])) +
+      geom_bar(position = "fill", color = "black") +
+      labs(title = paste("Bar Plot for", i),
+           subtitle = paste("Fisher's Exact Test cu simulare: ",
+                             #"\n95% CI:", format(fisher_result$conf.int[1], digits = 4),
+                             #"-", format(fisher_result$conf.int[2], digits = 4),
+                             "\nSimulated p-value =", format(fisher_result$p.value, digits = 4),
+                             "\nV Cramer's statistic =", format(v_cramer, digits = 4)),
+           x = "Vechimea diferită leziuni",
+           y = "Proportion") +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+
+```
+
+
+# 11.	Care este locul prepoderent al agresării (Locul agresării)?
+•	corelația dintre locul agresării (Locul agresării) și gradul de gravitate a leziunilor (Gradul de gravitate)
+•	corelația dintre locul agresării (Locul agresării) și numărul leziunilor (Numărul leziunilor)
+
+```{r}
+
+# df %>%
+#   select("Locul agresării", "Numărul leziunilor")%>%
+#   #mutate(Severitatea = factor(Severitatea, levels = c("Neînsemnat", "Ușor", "Grav-Mediu"))) %>%
+#   tbl_summary(
+#     by = "Locul agresării",
+#     statistic = list(
+#       all_categorical() ~ "{n} ({p}%)",
+#       all_continuous() ~ "{mean} ({sd})\n {median} ({IQR})\n {min} {max} "
+#     ),
+#     digits = list(
+#       all_categorical() ~ c(0, 1),
+#       all_continuous() ~ c(1, 1)
+#     )
+#   ) %>%
+#   modify_header(label = "**Variable**") %>%
+#   modify_caption("Participant characteristics") %>%
+#   bold_labels() %>%
+#   add_ci() %>% 
+#   add_p() %>%
+#   add_q(method = "hochberg") %>%
+#   bold_p()
+
+
+
+```
+
+
+
+```{r}
+
+# for (i in seq_along(numerical_data)) {
+#   element1 <- numerical_data[[i]]
+#   element2 <- numerical_data[[i]]
+#   
+#   plot <- create_grouped_boxplot(df, "Locul agresării", !!ensym(element1), "Locul agresării", element2)
+#   print(plot)
+# }
+
+
+
+```
+
+
+
+
+
+
 
